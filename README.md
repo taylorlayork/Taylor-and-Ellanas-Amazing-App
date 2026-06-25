@@ -175,3 +175,9 @@ Version 52 updates the public GitHub Pages URL references to https://taylorlayor
 - Poster Board realtime updates now keep the visible post order static. New activity updates the Poster Board badge only until you click the Poster Board tab or use Refresh live data.
 - Reactions/replies no longer yank the post to the top for the current user.
 - Leaving Poster Board marks only the posts currently visible as seen; unseen queued activity stays badged until refreshed/viewed.
+
+
+## v56
+- Uses a clean absolute JPEG Open Graph image URL (`preview-image.jpg`) first for Messenger/Facebook previews, with PNG as backup.
+- Removes the `?v=53` query string from the social preview image metadata.
+- Updates the service worker cache to `across-static-v56`.
