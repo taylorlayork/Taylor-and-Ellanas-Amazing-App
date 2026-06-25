@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#8b5cf6" />
+  <title>Taylor &amp; Ellana's Amazing App!</title>
+  <meta name="description" content="A fun shared app for time zones, weather, call windows, and trip planning between Ingleside, Illinois and Sydney, Australia." />
+  <meta property="og:title" content="Taylor &amp; Ellana's Amazing App!" />
+  <meta property="og:description" content="A fun shared app for time zones, weather, call windows, and trip planning between Illinois and Sydney." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="preview-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Taylor & Ellana's Amazing App! share preview image." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Taylor &amp; Ellana's Amazing App!" />
+  <meta name="twitter:description" content="A fun shared app for time zones, weather, call windows, and trip planning between Illinois and Sydney." />
+  <meta name="twitter:image" content="preview-image.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header id="overview" class="hero page-section">
+      <div class="hero-card">
+        <p class="eyebrow">Ingleside, IL ↔ Sydney, NSW</p>
+        <h1>Taylor &amp; Ellana's Amazing App!</h1>
+        <div class="actions hero-actions">
+          <button id="refreshAll">Refresh live data</button>
+          <button id="openSettings" class="secondary">Edit names & dates</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="times" class="panel grid two page-section" data-tab-panel="time">
+        <div class="section-title full"><p class="eyebrow">Right now</p><h2>Local time and day context</h2></div>
+        <article class="card" id="place-us"></article>
+        <article class="card" id="place-au"></article>
+        <article class="card insight full" id="differenceCard"></article>
+        <details class="card full clock-guide-card disclosure-card">
+          <summary>How the clock colors work</summary>
+          <p>The outside face is the normal 1–12 clock. The inner ring shows 13–24 for afternoon/evening hours. The shaded wedges start from the center of the clock and fan outward: outer wedges show AM overlap, smaller inner wedges show PM/13–24 overlap. Green means you are inside a good shared window right now; pink means the next shared window is later.</p>
+        </details>
+      </section>
+
+      <section id="calls" class="panel page-section" data-tab-panel="time">
+        <div class="section-title compact-title"><p class="eyebrow">Connection timing</p><h2>Best upcoming windows to talk</h2><p>Next two reasonable overlap windows.</p></div>
+        <div id="callWindows" class="list"></div>
+      </section>
+
+      <section id="weather" class="panel page-section" data-tab-panel="weather">
+        <div class="section-title"><p class="eyebrow">Live weather</p><h2>Weather where each of you are</h2></div>
+        <div class="grid two"><article class="card" id="weather-us"></article><article class="card" id="weather-au"></article></div>
+        <article class="card full temp-converter-card">
+          <h3>°F ↔ °C</h3>
+          <div class="converter temp-converter"><label>°F<input id="tempFInput" type="number" step="1" value="75" /></label><span>⇄</span><label>°C<input id="tempCInput" type="number" step="1" /></label></div>
+        </article>
+      </section>
+
+      <section id="extras" class="panel grid two page-section" data-tab-panel="extras">
+        <div class="section-title full"><p class="eyebrow">Extras</p><h2>Helpful extras to keep handy</h2></div>
+        <article class="card" id="connectionPrompt"></article>
+        <article class="card">
+          <h3>Quick country/location notes</h3>
+          <div class="note-grid">
+            <div><strong>Temperature:</strong> USA commonly uses °F; Australia uses °C.</div>
+            <div class="currency-note"><strong>Currency:</strong> <span id="fxQuickNote">Loading exchange rate…</span></div>
+            <div><strong>Dates:</strong> USA commonly MM/DD/YYYY; Australia commonly DD/MM/YYYY.</div>
+            <div><strong>Emergency:</strong> USA 911; Australia 000.</div>
+            <div><strong>Driving:</strong> USA drives right; Australia drives left.</div>
+            <div><strong>Power plugs:</strong> USA Type A/B; Australia Type I.</div>
+            <div><strong>Seasons:</strong> Sydney’s seasons are opposite Illinois.</div>
+          </div>
+        </article>
+      </section>
+
+      <section id="planner" class="panel page-section" data-tab-panel="vacation">
+        <div class="section-title planner-suggestions-title"><p class="eyebrow">Trip ideas</p><h2>Potential best 1–2 week trips we could take together</h2><p>Shows up to 4 distinct ranges. Tap an option to open its calendar.</p></div>
+        <div id="tripSuggestions" class="list"></div>
+      </section>
+
+      <section id="holidays" class="panel page-section" data-tab-panel="vacation">
+        <div class="section-title"><p class="eyebrow">Planning around time off</p><h2>Upcoming holidays</h2><p>Defaults to the current year. Use the list button for the detailed holiday names and dates.</p></div>
+        <div class="toolbar holiday-toolbar">
+          <label>Year<select id="holidayYear"></select></label>
+          <label>View<select id="holidayFilter"><option value="all">Both places</option><option value="us">Ingleside / USA</option><option value="au">Sydney / Australia NSW</option></select></label>
+          <button id="openHolidayList" type="button" class="secondary holiday-list-button">View holiday list</button>
+        </div>
+        <div id="holidayCalendar" class="holiday-calendar-wrap"></div>
+      </section>
+    </main>
+  </div>
+
+
+  <nav class="bottom-tabbar" id="bottomTabbar" aria-label="Main app sections">
+    <button class="tab-slab active" type="button" data-app-tab="time" aria-current="page"><span>Time</span></button>
+    <button class="tab-slab" type="button" data-app-tab="weather"><span>Weather</span></button>
+    <button class="tab-slab" type="button" data-app-tab="vacation"><span>Vacation Schedule Helper</span></button>
+    <button class="tab-slab" type="button" data-app-tab="extras"><span>Extras</span></button>
+  </nav>
+
+  <dialog id="settingsDialog">
+    <form method="dialog" class="settings">
+      <header><h2>Shared settings</h2><button class="icon" value="cancel" aria-label="Close">×</button></header>
+      <div class="settings-grid">
+        <label>Your display name<input id="nameUs" type="text" placeholder="Taylor" /></label>
+        <label>Her display name<input id="nameAu" type="text" placeholder="Ellana" /></label>
+        <label>Reasonable start hour<input id="awakeStart" type="number" min="0" max="23" /></label>
+        <label>Reasonable end hour<input id="awakeEnd" type="number" min="1" max="24" /></label>
+        <label class="full">Important date label<input id="customDateLabel" type="text" placeholder="First call, birthday, trip…" /></label>
+        <label>Date<input id="customDateValue" type="date" /></label>
+        <button id="addCustomDate" type="button">Add date</button>
+      </div>
+      <div><h3>Saved dates</h3><div id="customDates" class="list compact"></div></div>
+      <menu><button id="resetSettings" type="button" class="secondary danger">Reset</button><button id="saveSettings" value="default">Save</button></menu>
+    </form>
+  </dialog>
+
+  <dialog id="chartDialog" class="chart-dialog">
+    <button class="icon modal-close-floating" id="closeChartDialog" aria-label="Close">×</button>
+    <div id="chartDialogContent" class="chart-dialog-content"></div>
+  </dialog>
+
+
+  <dialog id="holidayListDialog" class="holiday-list-dialog">
+    <button class="icon modal-close-floating" id="closeHolidayListDialog" aria-label="Close">×</button>
+    <div class="holiday-dialog-content">
+      <h2>Holiday list</h2>
+      <p id="holidayDialogMeta" class="muted"></p>
+      <div id="holidayList" class="list holiday-list"></div>
+    </div>
+  </dialog>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
