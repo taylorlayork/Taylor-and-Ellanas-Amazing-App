@@ -3996,3 +3996,41 @@ body.reply-drawing-fullscreen-open .reply-drawing-panel.is-fullscreen {
   min-width: 5.4rem !important;
 }
 .planner-slab-toggle[open] .planner-summary-pill::before { content: 'Close'; }
+
+
+/* v67 clean: desktop nav centering + calendar bubbles attached to their date plate */
+.holiday-month { position: relative !important; overflow: visible !important; }
+.month-grid { overflow: visible !important; }
+.holiday-touch-detail { position: absolute !important; }
+.bottom-tabbar,
+body.is-standalone-app .bottom-tabbar {
+  left: 50% !important;
+  right: auto !important;
+  width: min(980px, calc(100% - 1rem)) !important;
+  max-width: 980px !important;
+}
+body.nav-compact-on-scroll .bottom-tabbar,
+body.is-standalone-app.nav-compact-on-scroll .bottom-tabbar,
+body.nav-hidden-on-scroll .bottom-tabbar,
+body.is-standalone-app.nav-hidden-on-scroll .bottom-tabbar {
+  transform: translate3d(-50%, calc(112% + env(safe-area-inset-bottom, 0px)), 0) scale(.34) !important;
+}
+body.nav-visible-on-scroll .bottom-tabbar,
+body.nav-open-from-home .bottom-tabbar,
+body:not(.nav-compact-on-scroll) .bottom-tabbar,
+body.nav-touching .bottom-tabbar,
+body.nav-touching.nav-compact-on-scroll .bottom-tabbar,
+body.nav-touching.nav-hidden-on-scroll .bottom-tabbar,
+body.nav-touching.is-standalone-app.nav-compact-on-scroll .bottom-tabbar,
+body.nav-touching.is-standalone-app.nav-hidden-on-scroll .bottom-tabbar,
+body .bottom-tabbar.is-dragging {
+  transform: translate3d(-50%, 0, 0) scale(1) !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bottom-tabbar {
+    left: 50% !important;
+    right: auto !important;
+    width: min(980px, calc(100% - 2rem)) !important;
+    transform: translate3d(-50%, 0, 0) scale(1) !important;
+  }
+}

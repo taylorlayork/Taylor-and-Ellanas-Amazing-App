@@ -232,3 +232,10 @@ Version 52 updates the public GitHub Pages URL references to https://taylorlayor
 - Calendar holiday bubbles now automatically disappear when leaving the Vacation/calendar page or switching to another section/tab.
 - Re-rendering holiday data also clears any old bubble/selected date state.
 - Cache updated to `across-static-v66-clean`.
+
+
+## v67-clean-from-v56
+- Centers the desktop/computer bottom navigation bar.
+- Calendar holiday bubbles now attach to the tapped month/date plate instead of the viewport.
+- Calendar bubbles close on outside tap, tab switch, or scroll/touchmove so they do not linger in app mode.
+- Cache updated to v67-clean.

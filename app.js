@@ -730,7 +730,7 @@ function buildHolidayMonth(monthKey, byDate, filter) {
 function eachDate(startIso, endIso){ const out=[]; let d=new Date(`${startIso}T12:00:00Z`); const end=new Date(`${endIso}T12:00:00Z`); while(d<=end){ out.push(d.toISOString().slice(0,10)); d=new Date(d.getTime()+86400000); } return out; }
 function holidayBubbleElement(cell) {
   let box = $('#holidayTouchDetail');
-  const wrap = cell?.closest?.('.holiday-calendar-wrap') || $('#holidayCalendar');
+  const wrap = cell?.closest?.('.holiday-month') || cell?.closest?.('.holiday-calendar-wrap') || $('#holidayCalendar');
   if (!box) {
     box = document.createElement('div');
     box.id = 'holidayTouchDetail';
@@ -743,7 +743,7 @@ function holidayBubbleElement(cell) {
 
 function positionHolidayBubble(box, cell) {
   if (!box || !cell) return;
-  const wrap = cell.closest('.holiday-calendar-wrap') || $('#holidayCalendar');
+  const wrap = cell.closest('.holiday-month') || cell.closest('.holiday-calendar-wrap') || $('#holidayCalendar');
   if (!wrap) return;
   const cellRect = cell.getBoundingClientRect();
   const wrapRect = wrap.getBoundingClientRect();
@@ -1589,6 +1589,13 @@ function initBottomTabs() {
   });
   window.visualViewport?.addEventListener?.('resize', updateReplyDrawingViewportVars);
   window.visualViewport?.addEventListener?.('scroll', updateReplyDrawingViewportVars);
+  const hideCalendarBubbleOnMove = () => {
+    const box = $('#holidayTouchDetail');
+    if (box && !box.hidden) hideHolidayTouchDetail();
+  };
+  window.addEventListener('scroll', hideCalendarBubbleOnMove, { passive: true });
+  window.visualViewport?.addEventListener?.('scroll', hideCalendarBubbleOnMove, { passive: true });
+  document.addEventListener('touchmove', hideCalendarBubbleOnMove, { passive: true });
   initStandaloneNavAutoHide(tabbar);
 }
 
@@ -2736,6 +2743,9 @@ function attachEvents() {
       event.preventDefault();
       showHolidayTouchDetail(holidayCell);
       return;
+    }
+    if ($('#holidayTouchDetail') && !event.target.closest('#holidayTouchDetail')) {
+      hideHolidayTouchDetail();
     }
     if (event.target.closest('[data-app-tab], [data-section-link]') && !event.target.closest('[data-section-link="holidays"]')) {
       hideHolidayTouchDetail();
