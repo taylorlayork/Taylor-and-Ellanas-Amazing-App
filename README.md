@@ -138,3 +138,19 @@ Run the updated `supabase-setup.sql` again. It adds replies, reactions, latest-a
 
 ## v49
 - Poster Board author picker is now a Change user button with a Taylor/Ellana popup. Ellana remains the default, and the selected user is saved per device.
+
+
+## v50
+- Fixed Poster Board reaction and reply buttons by wiring their click/submit handlers.
+- Fixed the selected Poster Board user so the visible user is the author used for posts/replies/reactions.
+- Cleaned up photo/drawing note fields and retained note display on media posts.
+- Updated cache to v50.
+
+
+## v51 updates
+- Replaced Home Screen/web app icon PNGs with the smoother readable T&E heart icon.
+- Updated Open Graph/Twitter image tags to use the absolute GitHub Pages preview image URL.
+- Bumped service worker cache to across-static-v51.
+
+
+Version 52 updates the public GitHub Pages URL references to https://taylorlayork.github.io/Taylor-and-Ellanas-Amazing-App/ for social previews and cache refreshes.

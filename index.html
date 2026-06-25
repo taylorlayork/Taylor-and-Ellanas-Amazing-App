@@ -12,14 +12,17 @@
   <meta property="og:title" content="Taylor &amp; Ellana's Amazing App!" />
   <meta property="og:description" content="A fun shared app for time zones, weather, call windows, and trip planning between Illinois and Sydney." />
   <meta property="og:type" content="website" />
-  <meta property="og:image" content="preview-image.png" />
+  <meta property="og:url" content="https://taylorlayork.github.io/Taylor-and-Ellanas-Amazing-App/" />
+  <meta property="og:image" content="https://taylorlayork.github.io/Taylor-and-Ellanas-Amazing-App/preview-image.png" />
+  <meta property="og:image:secure_url" content="https://taylorlayork.github.io/Taylor-and-Ellanas-Amazing-App/preview-image.png" />
+  <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Taylor & Ellana's Amazing App! share preview image." />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Taylor &amp; Ellana's Amazing App!" />
   <meta name="twitter:description" content="A fun shared app for time zones, weather, call windows, and trip planning between Illinois and Sydney." />
-  <meta name="twitter:image" content="preview-image.png" />
+  <meta name="twitter:image" content="https://taylorlayork.github.io/Taylor-and-Ellanas-Amazing-App/preview-image.png" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
@@ -72,7 +75,7 @@
           <div id="posterSetupNotice" class="poster-setup-notice" hidden></div>
           <div class="poster-form-grid">
             <div class="poster-user-row full">
-              <div><span class="muted">Posting as</span><strong id="posterCurrentAuthor">Ellana</strong></div>
+              <div class="poster-current-user"><span class="muted">Posting as</span><strong id="posterCurrentAuthor">Ellana</strong></div>
               <button id="changePosterAuthor" class="secondary" type="button">Change user</button>
             </div>
             <label class="full">Message<textarea id="posterMessage" rows="3" placeholder="Write something sweet, funny, random, or dramatic…"></textarea></label>
@@ -84,7 +87,7 @@
               <p class="muted">Choose a picture from your phone, then post it to the board.</p>
               <input id="posterPhotoInput" type="file" accept="image/*" />
               <button id="togglePhotoNote" class="add-note-toggle" type="button" data-note-target="photoNoteWrap" aria-expanded="false">+ Add a note</button>
-              <label id="photoNoteWrap" class="poster-note-wrap" hidden>Note for this photo<textarea id="posterPhotoNote" rows="2" placeholder="Optional caption or context…"></textarea></label>
+              <label id="photoNoteWrap" class="poster-note-wrap" hidden><span>Note</span><textarea id="posterPhotoNote" rows="2" placeholder="Write a note…"></textarea></label>
               <button id="postPhotoBtn" type="button">Post photo</button>
             </section>
             <section class="poster-tool-card drawing-tool">
@@ -92,7 +95,7 @@
               <p class="muted">Use your finger on iPhone or your mouse on computer.</p>
               <canvas id="drawingCanvas" aria-label="Finger drawing canvas"></canvas>
               <button id="toggleDrawingNote" class="add-note-toggle" type="button" data-note-target="drawingNoteWrap" aria-expanded="false">+ Add a note</button>
-              <label id="drawingNoteWrap" class="poster-note-wrap" hidden>Note for this drawing<textarea id="posterDrawingNote" rows="2" placeholder="Optional note about your drawing…"></textarea></label>
+              <label id="drawingNoteWrap" class="poster-note-wrap" hidden><span>Note</span><textarea id="posterDrawingNote" rows="2" placeholder="Write a note…"></textarea></label>
               <div class="actions compact-actions drawing-actions"><button id="expandDrawingBtn" type="button" class="secondary" aria-pressed="false">Full-screen draw</button><button id="clearDrawingBtn" type="button" class="secondary">Clear</button><button id="postDrawingBtn" type="button">Post drawing</button></div>
             </section>
           </div>
@@ -196,7 +199,7 @@
     <div id="drawingFullscreenStage" class="drawing-fullscreen-stage"></div>
     <div class="drawing-fullscreen-note">
       <button id="toggleFullscreenDrawingNote" class="add-note-toggle" type="button" data-note-target="fullscreenDrawingNoteWrap" aria-expanded="false">+ Add a note</button>
-      <label id="fullscreenDrawingNoteWrap" class="poster-note-wrap" hidden>Note for this drawing<textarea id="fullscreenDrawingNote" rows="2" placeholder="Optional note about your drawing…"></textarea></label>
+      <label id="fullscreenDrawingNoteWrap" class="poster-note-wrap" hidden><span>Note</span><textarea id="fullscreenDrawingNote" rows="2" placeholder="Write a note…"></textarea></label>
     </div>
     <div class="drawing-fullscreen-actions">
       <button id="fullscreenClearDrawing" type="button" class="secondary">Clear</button>

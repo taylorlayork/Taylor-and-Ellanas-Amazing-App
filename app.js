@@ -1421,6 +1421,7 @@ let posterChannel = null;
 let posterSeenIds = new Set();
 let posterPosts = [];
 let posterUnreadClearTimer = null;
+let posterCurrentAuthor = null;
 let drawingContext = null;
 let drawingHasInk = false;
 let drawingPointerId = null;
@@ -1619,23 +1620,27 @@ function loadPosterAuthor() {
 function savePosterAuthor(value) {
   if (value === 'Taylor' || value === 'Ellana') localStorage.setItem(POSTER_AUTHOR_KEY, value);
 }
-function setPosterAuthorUi(value = loadPosterAuthor()) {
+function setPosterAuthorUi(value = posterCurrentAuthor || loadPosterAuthor()) {
   const author = value === 'Taylor' ? 'Taylor' : 'Ellana';
+  posterCurrentAuthor = author;
   savePosterAuthor(author);
   const label = $('#posterCurrentAuthor');
   if (label) label.textContent = author;
+  const row = document.querySelector('.poster-user-row');
+  if (row) row.dataset.currentAuthor = author;
   document.querySelectorAll('[data-poster-author-choice]').forEach(button => {
     button.classList.toggle('active', button.dataset.posterAuthorChoice === author);
     button.setAttribute('aria-pressed', String(button.dataset.posterAuthorChoice === author));
   });
 }
 function initPosterAuthorPicker() {
-  setPosterAuthorUi(loadPosterAuthor());
+  posterCurrentAuthor = loadPosterAuthor();
+  setPosterAuthorUi(posterCurrentAuthor);
 }
 function posterAuthor() {
-  const value = loadPosterAuthor();
-  setPosterAuthorUi(value);
-  return value || 'Ellana';
+  if (posterCurrentAuthor !== 'Taylor' && posterCurrentAuthor !== 'Ellana') posterCurrentAuthor = loadPosterAuthor();
+  setPosterAuthorUi(posterCurrentAuthor);
+  return posterCurrentAuthor || 'Ellana';
 }
 function noteValue(selector) {
   return ($(selector)?.value || '').trim();
@@ -1911,9 +1916,12 @@ async function togglePosterReaction(postId, emoji) {
     setPosterStatus(error.message || 'Reaction failed. Run the updated supabase-setup.sql and try again.', true);
   }
 }
+function safeCss(value) {
+  return window.CSS?.escape ? CSS.escape(String(value)) : String(value).replace(/\"/g, '\\"');
+}
 function setReplyFormOpen(postId, open) {
-  const form = document.querySelector(`[data-reply-form="${CSS.escape(postId)}"]`);
-  const button = document.querySelector(`[data-reply-toggle="${CSS.escape(postId)}"]`);
+  const form = document.querySelector(`[data-reply-form="${safeCss(postId)}"]`);
+  const button = document.querySelector(`[data-reply-toggle="${safeCss(postId)}"]`);
   if (!form) return;
   form.hidden = !open;
   if (button) button.textContent = open ? 'Replying…' : 'Reply';
@@ -2041,7 +2049,7 @@ function attachEvents() {
   onIf('#openHolidayList', 'click', () => { renderHolidays(); $('#holidayListDialog').showModal(); });
   onIf('#closeHolidayListDialog', 'click', () => $('#holidayListDialog').close());
   onIf('#changePosterAuthor', 'click', () => {
-    setPosterAuthorUi(loadPosterAuthor());
+    setPosterAuthorUi(posterAuthor());
     $('#posterUserDialog')?.showModal();
   });
   onIf('#closePosterUserDialog', 'click', () => $('#posterUserDialog')?.close());
@@ -2074,6 +2082,26 @@ function attachEvents() {
       renderPosterFeed(posterPosts, { keepSeenState: true });
       return;
     }
+    const reactButton = event.target.closest('[data-react-poster-id]');
+    if (reactButton) {
+      event.preventDefault();
+      togglePosterReaction(reactButton.dataset.reactPosterId, reactButton.dataset.reactEmoji);
+      return;
+    }
+    const replyToggle = event.target.closest('[data-reply-toggle]');
+    if (replyToggle) {
+      event.preventDefault();
+      const postId = replyToggle.dataset.replyToggle;
+      const form = document.querySelector(`[data-reply-form="${safeCss(postId)}"]`);
+      setReplyFormOpen(postId, Boolean(form?.hidden));
+      return;
+    }
+    const replyCancel = event.target.closest('[data-reply-cancel]');
+    if (replyCancel) {
+      event.preventDefault();
+      setReplyFormOpen(replyCancel.dataset.replyCancel, false);
+      return;
+    }
     const tempButton = event.target.closest('[data-temp-toggle]');
     if (tempButton) toggleWeatherUnit(tempButton.dataset.tempToggle);
     const calmButton = event.target.closest('[data-calm-call-alert]');
@@ -2089,6 +2117,13 @@ function attachEvents() {
     const deleteButton = event.target.closest('[data-delete-poster-id]');
     if (deleteButton) {
       deletePosterPost(deleteButton.dataset.deletePosterId, deleteButton.dataset.deleteImagePath || '');
+    }
+  });
+  document.addEventListener('submit', event => {
+    const replyForm = event.target.closest('[data-reply-form]');
+    if (replyForm) {
+      event.preventDefault();
+      submitPosterReply(replyForm);
     }
   });
   setInterval(() => { renderTimes(); renderCallWindows(); }, 1000);

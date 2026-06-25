@@ -3336,3 +3336,32 @@ body.drawing-fullscreen .bottom-tabbar {
     min-height: 2.9rem;
   }
 }
+
+
+/* v50: Poster Board interaction fixes */
+.poster-current-user {
+  display: inline-flex !important;
+  align-items: baseline;
+  gap: .35rem !important;
+}
+.poster-current-user .muted::after { content: ''; }
+.poster-note-wrap > span {
+  display: block;
+  margin-bottom: .28rem;
+  color: var(--muted);
+  font-size: .82rem;
+  font-weight: 850;
+}
+.poster-react-button,
+.poster-reply-toggle,
+.poster-reply-form button,
+.add-note-toggle,
+.poster-user-choice-grid button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(236,72,153,.18);
+}
+.poster-react-button:active,
+.poster-reply-toggle:active,
+.add-note-toggle:active {
+  transform: translateY(1px) scale(.98);
+}
