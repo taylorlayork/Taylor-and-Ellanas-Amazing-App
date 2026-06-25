@@ -121,3 +121,8 @@ Version 42 update: Poster Board composer is collapsed by default behind a + Post
 
 
 v43 notes: Removed the Daily connection cue from Extras, added a full-screen drawing mode for phones, improved drawing resize preservation, and made Poster Board deletion verify that Supabase actually deleted the row. Re-run `supabase-setup.sql` in Supabase for the explicit DELETE grant/policy.
+
+
+## v44
+- Fixed Weather and Vacation Helper rendering after removing the Extras Daily connection cue.
+- Updated service-worker cache to v44.

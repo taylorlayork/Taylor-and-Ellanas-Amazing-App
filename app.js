@@ -937,6 +937,8 @@ function convertFromC(){ const c = Number($('#tempCInput').value || 0); $('#temp
 
 
 function renderConnectionPrompt() {
+  const target = $('#connectionPrompt');
+  if (!target) return;
   const prompts = [
     `Ask for one picture from ${CONFIG.places.au.shortLabel} today and send one from ${CONFIG.places.us.shortLabel}.`,
     `Plan the next call using the first good window above, then keep it low-pressure.`,
@@ -944,7 +946,7 @@ function renderConnectionPrompt() {
     `Pick one shared watch/listen item and agree on a day to react to it.`
   ];
   const index = new Date().getDate() % prompts.length;
-  $('#connectionPrompt').innerHTML = `<h3>Daily connection cue</h3><p>${prompts[index]}</p>`;
+  target.innerHTML = `<h3>Daily connection cue</h3><p>${prompts[index]}</p>`;
 }
 
 function openChartDialog(placeId, dayIndex = 0) {
