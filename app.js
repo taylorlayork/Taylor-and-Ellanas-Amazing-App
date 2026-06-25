@@ -728,6 +728,9 @@ function buildHolidayMonth(monthKey, byDate, filter) {
 
 
 function eachDate(startIso, endIso){ const out=[]; let d=new Date(`${startIso}T12:00:00Z`); const end=new Date(`${endIso}T12:00:00Z`); while(d<=end){ out.push(d.toISOString().slice(0,10)); d=new Date(d.getTime()+86400000); } return out; }
+let activeHolidayBubbleDate = null;
+let suppressNextHolidayCellClick = false;
+
 function holidayBubbleElement(cell) {
   let box = $('#holidayTouchDetail');
   const wrap = cell?.closest?.('.holiday-month') || cell?.closest?.('.holiday-calendar-wrap') || $('#holidayCalendar');
@@ -791,6 +794,11 @@ function showHolidayTouchDetail(cell) {
   if (!box || !cell) return;
   const detail = cell.dataset.holidayDetail || '';
   const date = cell.dataset.holidayDate || '';
+  if (!box.hidden && activeHolidayBubbleDate === date) {
+    hideHolidayTouchDetail();
+    return;
+  }
+  activeHolidayBubbleDate = date;
   document.querySelectorAll('.calendar-cell.is-selected').forEach(el => el.classList.remove('is-selected'));
   cell.classList.add('is-selected');
   if (!detail) {
@@ -805,6 +813,7 @@ function showHolidayTouchDetail(cell) {
 
 
 function hideHolidayTouchDetail() {
+  activeHolidayBubbleDate = null;
   const box = $('#holidayTouchDetail');
   if (box) {
     box.hidden = true;
@@ -812,6 +821,35 @@ function hideHolidayTouchDetail() {
     box.style.transform = '';
   }
   document.querySelectorAll('.calendar-cell.is-selected').forEach(el => el.classList.remove('is-selected'));
+}
+
+function maybeDismissHolidayBubbleFromPointer(event) {
+  const box = $('#holidayTouchDetail');
+  if (!box || box.hidden) return;
+  const target = event.target;
+  const holidayCell = target.closest?.('[data-holiday-date]');
+  const clickedBubble = target.closest?.('#holidayTouchDetail');
+  if (clickedBubble) {
+    event.preventDefault?.();
+    suppressNextHolidayCellClick = true;
+    window.setTimeout(() => { suppressNextHolidayCellClick = false; }, 260);
+    hideHolidayTouchDetail();
+    return;
+  }
+  if (holidayCell && holidayCell.dataset.holidayDate === activeHolidayBubbleDate) {
+    event.preventDefault?.();
+    suppressNextHolidayCellClick = true;
+    window.setTimeout(() => { suppressNextHolidayCellClick = false; }, 260);
+    hideHolidayTouchDetail();
+    return;
+  }
+  if (!holidayCell) hideHolidayTouchDetail();
+}
+
+function initHolidayBubbleDismissal() {
+  const onPointerStart = (event) => maybeDismissHolidayBubbleFromPointer(event);
+  document.addEventListener('pointerdown', onPointerStart, true);
+  document.addEventListener('touchstart', onPointerStart, { capture: true, passive: false });
 }
 
 function holidayMapByDate() {
@@ -2738,14 +2776,25 @@ function attachEvents() {
       }
       return;
     }
+    const holidayBubble = $('#holidayTouchDetail');
+    if (holidayBubble && !holidayBubble.hidden) {
+      const holidayCell = event.target.closest('[data-holiday-date]');
+      const clickedBubble = event.target.closest('#holidayTouchDetail');
+      if (clickedBubble && !holidayCell) {
+        event.preventDefault();
+        hideHolidayTouchDetail();
+        return;
+      }
+      if (!holidayCell) {
+        hideHolidayTouchDetail();
+      }
+    }
     const holidayCell = event.target.closest('[data-holiday-date]');
     if (holidayCell) {
       event.preventDefault();
+      if (suppressNextHolidayCellClick) return;
       showHolidayTouchDetail(holidayCell);
       return;
-    }
-    if ($('#holidayTouchDetail') && !event.target.closest('#holidayTouchDetail')) {
-      hideHolidayTouchDetail();
     }
     if (event.target.closest('[data-app-tab], [data-section-link]') && !event.target.closest('[data-section-link="holidays"]')) {
       hideHolidayTouchDetail();
@@ -2787,6 +2836,7 @@ async function init() {
   try { markStandaloneDisplayMode(); } catch (err) { console.warn(err); }
   try { initBottomTabs(); } catch (err) { console.warn('Tabs failed:', err); }
   try { attachEvents(); } catch (err) { console.warn('Events failed:', err); }
+  try { initHolidayBubbleDismissal(); } catch (err) { console.warn('Holiday bubble dismissal failed:', err); }
   try { initDialogBackdropClose(); } catch (err) { console.warn(err); }
   try { initPosterBoard(); } catch (err) { console.warn('Poster Board init failed:', err); }
   try { convertFromF(); } catch (err) { console.warn(err); }

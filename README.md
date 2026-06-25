@@ -239,3 +239,21 @@ Version 52 updates the public GitHub Pages URL references to https://taylorlayor
 - Calendar holiday bubbles now attach to the tapped month/date plate instead of the viewport.
 - Calendar bubbles close on outside tap, tab switch, or scroll/touchmove so they do not linger in app mode.
 - Cache updated to v67-clean.
+
+
+## v68-clean-from-v56
+- Hard-centered the desktop/computer bottom navigation bar and forced the five-button layout to stay centered.
+- Calendar holiday bubbles now close when tapped directly.
+- Calendar holiday bubbles also close when tapping anywhere outside the selected calendar date/bubble.
+
+
+## v69-clean-from-v56
+- Calendar holiday bubbles can now be closed by tapping the same date again.
+- Calendar bubbles can now be closed by tapping the bubble itself.
+- Added a capture-level touch/pointer dismiss fallback for iPhone Home Screen mode.
+- Cache updated to v69-clean.
+
+
+## v70-clean update
+- Added a tiny visible version badge (`v70`) inside the main title slab so deployed builds are easy to confirm.
+- Updated service worker cache to `across-static-v70-clean`.
