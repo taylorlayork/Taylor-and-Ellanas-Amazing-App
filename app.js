@@ -728,6 +728,29 @@ function buildHolidayMonth(monthKey, byDate, filter) {
 
 
 function eachDate(startIso, endIso){ const out=[]; let d=new Date(`${startIso}T12:00:00Z`); const end=new Date(`${endIso}T12:00:00Z`); while(d<=end){ out.push(d.toISOString().slice(0,10)); d=new Date(d.getTime()+86400000); } return out; }
+function positionHolidayBubble(box, cell) {
+  if (!box || !cell) return;
+  const rect = cell.getBoundingClientRect();
+  const gap = 10;
+  const width = Math.min(260, Math.max(190, window.innerWidth - 28));
+  box.style.width = `${width}px`;
+  box.hidden = false;
+  const bubbleRect = box.getBoundingClientRect();
+  let left = rect.left + (rect.width / 2) - (width / 2);
+  left = Math.max(12, Math.min(left, window.innerWidth - width - 12));
+  let top = rect.bottom + gap;
+  box.classList.remove('bubble-above');
+  if (top + bubbleRect.height > window.innerHeight - 18) {
+    top = rect.top - bubbleRect.height - gap;
+    box.classList.add('bubble-above');
+  }
+  if (top < 12) top = Math.min(window.innerHeight - bubbleRect.height - 12, rect.bottom + gap);
+  box.style.left = `${left}px`;
+  box.style.top = `${Math.max(12, top)}px`;
+  const arrowLeft = Math.max(18, Math.min(width - 18, rect.left + rect.width / 2 - left));
+  box.style.setProperty('--bubble-arrow-left', `${arrowLeft}px`);
+}
+
 function showHolidayTouchDetail(cell) {
   const box = $('#holidayTouchDetail');
   if (!box || !cell) return;
@@ -736,13 +759,13 @@ function showHolidayTouchDetail(cell) {
   document.querySelectorAll('.calendar-cell.is-selected').forEach(el => el.classList.remove('is-selected'));
   cell.classList.add('is-selected');
   if (!detail) {
-    box.hidden = false;
     box.innerHTML = `<strong>${displayIsoDate(date)}</strong><span>No loaded holiday for this date.</span>`;
+    positionHolidayBubble(box, cell);
     return;
   }
   const rows = detail.split(';;').filter(Boolean).map(item => `<span>${escapeHtml(item)}</span>`).join('');
-  box.hidden = false;
   box.innerHTML = `<strong>${displayIsoDate(date)}</strong>${rows}`;
+  positionHolidayBubble(box, cell);
 }
 
 function holidayMapByDate() {
@@ -1289,6 +1312,23 @@ function initStandaloneNavAutoHide(tabbar) {
   if (!tabbar || tabbar.dataset.autoHideReady) return;
   tabbar.dataset.autoHideReady = '1';
   let navHoldUntil = 0;
+  const holdNavForTouch = (holdMs = 1200) => {
+    navTouchHoldUntil = Date.now() + holdMs;
+    document.body.classList.add('nav-touching');
+    document.body.classList.remove('nav-compact-on-scroll', 'nav-hidden-on-scroll');
+    document.body.classList.add('nav-visible-on-scroll');
+  };
+  const releaseNavTouch = (holdMs = 900) => {
+    navTouchHoldUntil = Date.now() + holdMs;
+    window.setTimeout(() => {
+      if (Date.now() >= navTouchHoldUntil) document.body.classList.remove('nav-touching');
+    }, holdMs + 30);
+  };
+  tabbar.addEventListener('pointerdown', () => holdNavForTouch(1600), { passive: true });
+  tabbar.addEventListener('pointerup', () => releaseNavTouch(1200), { passive: true });
+  tabbar.addEventListener('pointercancel', () => releaseNavTouch(1200), { passive: true });
+  tabbar.addEventListener('touchstart', () => holdNavForTouch(1600), { passive: true });
+  tabbar.addEventListener('touchend', () => releaseNavTouch(1200), { passive: true });
   const showFullNav = (holdMs = 1600) => {
     navHoldUntil = Math.max(navHoldUntil, Date.now() + holdMs);
     document.body.classList.remove('nav-compact-on-scroll', 'nav-hidden-on-scroll');
@@ -1308,7 +1348,7 @@ function initStandaloneNavAutoHide(tabbar) {
     requestAnimationFrame(() => {
       const y = window.scrollY || 0;
       const diff = y - lastY;
-      if (Date.now() < navHoldUntil) {
+      if (Date.now() < navHoldUntil || Date.now() < navTouchHoldUntil || document.body.classList.contains('nav-touching') || tabbar.classList.contains('is-dragging')) {
         document.body.classList.remove('nav-compact-on-scroll', 'nav-hidden-on-scroll');
         document.body.classList.add('nav-visible-on-scroll');
         lastY = y;
@@ -1416,6 +1456,7 @@ function initBottomTabs() {
     tabbar.addEventListener('pointerdown', event => {
       const pressedButton = event.target.closest('[data-app-tab]');
       if (!pressedButton) return;
+      if (typeof window.acrossShowFullNav === 'function') window.acrossShowFullNav(2400);
       // Desktop/laptop should be simple click-only. Pointer capture on mouse can
       // swallow clicks in some desktop browsers, so only use drag-to-switch for touch/pen.
       if (event.pointerType === 'mouse') return;
@@ -1444,6 +1485,7 @@ function initBottomTabs() {
       if (dragPointerId !== null && event?.pointerId !== undefined && event.pointerId !== dragPointerId) return;
       const didDrag = dragSelecting;
       resetDragState();
+      if (typeof window.acrossShowFullNav === 'function') window.acrossShowFullNav(1600);
       if (didDrag) {
         suppressNextClick = true;
         window.setTimeout(() => { suppressNextClick = false; }, 240);
@@ -1460,6 +1502,7 @@ function initBottomTabs() {
     if (window.PointerEvent || event.touches.length !== 1) return;
     const pressedButton = event.target.closest('[data-app-tab]');
     if (!pressedButton) return;
+    if (typeof window.acrossShowFullNav === 'function') window.acrossShowFullNav(2400);
     const touch = event.touches[0];
     startX = touch.clientX;
     startY = touch.clientY;
@@ -1484,6 +1527,7 @@ function initBottomTabs() {
     if (window.PointerEvent) return;
     const didDrag = dragSelecting;
     resetDragState();
+    if (typeof window.acrossShowFullNav === 'function') window.acrossShowFullNav(1600);
     if (didDrag) {
       suppressNextClick = true;
       window.setTimeout(() => { suppressNextClick = false; }, 240);
@@ -1493,7 +1537,10 @@ function initBottomTabs() {
   window.addEventListener('resize', () => {
     markStandaloneDisplayMode();
     updateTabIndicator(tabbar, document.querySelector('.tab-slab.active'), { dragging: false });
+    updateReplyDrawingViewportVars();
   });
+  window.visualViewport?.addEventListener?.('resize', updateReplyDrawingViewportVars);
+  window.visualViewport?.addEventListener?.('scroll', updateReplyDrawingViewportVars);
   initStandaloneNavAutoHide(tabbar);
 }
 
@@ -1516,6 +1563,9 @@ let drawingOriginalParent = null;
 let drawingOriginalNextSibling = null;
 let drawingScrollY = 0;
 let replyDrawingScrollY = 0;
+let replyDrawingFullscreenPanel = null;
+let replyDrawingFullscreenPlaceholder = null;
+let navTouchHoldUntil = 0;
 const replyCanvasState = new WeakMap();
 
 function posterConfig() {
@@ -2254,29 +2304,70 @@ function setReplyDrawingOpen(postId, open = true) {
     window.setTimeout(() => replyCanvasState.get(canvas)?.resize?.({ preserve: true }), 50);
   }
 }
+function updateReplyDrawingViewportVars() {
+  const viewport = window.visualViewport;
+  const top = viewport ? viewport.offsetTop : 0;
+  const height = viewport ? viewport.height : window.innerHeight;
+  const width = viewport ? viewport.width : window.innerWidth;
+  document.documentElement.style.setProperty('--reply-vv-top', `${Math.max(0, top)}px`);
+  document.documentElement.style.setProperty('--reply-vv-height', `${Math.max(320, height)}px`);
+  document.documentElement.style.setProperty('--reply-vv-width', `${Math.max(280, width)}px`);
+}
+function dockReplyDrawingPanel(panel) {
+  if (!panel || panel.parentElement === document.body) return;
+  if (!replyDrawingFullscreenPlaceholder) {
+    replyDrawingFullscreenPlaceholder = document.createComment('reply drawing fullscreen placeholder');
+  }
+  panel.parentNode.insertBefore(replyDrawingFullscreenPlaceholder, panel.nextSibling);
+  replyDrawingFullscreenPanel = panel;
+  document.body.appendChild(panel);
+}
+function restoreReplyDrawingPanel() {
+  const panel = replyDrawingFullscreenPanel;
+  const placeholder = replyDrawingFullscreenPlaceholder;
+  if (panel && placeholder?.parentNode) {
+    placeholder.parentNode.insertBefore(panel, placeholder);
+    placeholder.remove();
+  }
+  replyDrawingFullscreenPanel = null;
+  replyDrawingFullscreenPlaceholder = null;
+}
 function setReplyDrawingFullscreen(postId, open) {
-  const form = getReplyForm(postId);
-  if (!form) return;
-  const panel = form.querySelector('[data-reply-drawing-panel]');
-  const canvas = form.querySelector('[data-reply-canvas]');
-  const button = form.querySelector('[data-reply-drawing-fullscreen]');
+  const form = getReplyForm(postId) || replyDrawingFullscreenPanel?.closest?.('[data-reply-form]');
+  let panel = form?.querySelector('[data-reply-drawing-panel]') || replyDrawingFullscreenPanel;
+  let canvas = form?.querySelector('[data-reply-canvas]') || panel?.querySelector('[data-reply-canvas]');
+  let button = form?.querySelector('[data-reply-drawing-fullscreen]') || panel?.querySelector('[data-reply-drawing-fullscreen]');
   if (!panel || !canvas) return;
-  setReplyDrawingOpen(postId, true);
   const wantsOpen = Boolean(open);
-  if (wantsOpen) replyDrawingScrollY = window.scrollY || 0;
+  if (wantsOpen) {
+    setReplyDrawingOpen(postId, true);
+    panel = getReplyForm(postId)?.querySelector('[data-reply-drawing-panel]') || panel;
+    canvas = panel.querySelector('[data-reply-canvas]') || canvas;
+    button = panel.querySelector('[data-reply-drawing-fullscreen]') || button;
+    replyDrawingScrollY = window.scrollY || 0;
+    updateReplyDrawingViewportVars();
+    dockReplyDrawingPanel(panel);
+  }
   panel.classList.toggle('is-fullscreen', wantsOpen);
   panel.setAttribute('aria-modal', wantsOpen ? 'true' : 'false');
+  panel.dataset.fullscreenPostId = wantsOpen ? postId : '';
   document.body.classList.toggle('reply-drawing-fullscreen-open', wantsOpen);
   if (button) {
     button.textContent = wantsOpen ? 'Done full-screen' : 'Full-screen draw';
     button.setAttribute('aria-pressed', String(wantsOpen));
   }
-  const resize = () => replyCanvasState.get(canvas)?.resize?.({ preserve: true });
+  const resize = () => {
+    updateReplyDrawingViewportVars();
+    replyCanvasState.get(canvas)?.resize?.({ preserve: true });
+  };
   requestAnimationFrame(resize);
   window.setTimeout(resize, 60);
   window.setTimeout(resize, 160);
   window.setTimeout(resize, 360);
-  if (!wantsOpen && Number.isFinite(replyDrawingScrollY)) window.setTimeout(() => window.scrollTo(0, replyDrawingScrollY), 0);
+  if (!wantsOpen) {
+    restoreReplyDrawingPanel();
+    if (Number.isFinite(replyDrawingScrollY)) window.setTimeout(() => window.scrollTo(0, replyDrawingScrollY), 0);
+  }
 }
 function clearReplyDrawing(postId) {
   const form = getReplyForm(postId);
@@ -2552,15 +2643,18 @@ function attachEvents() {
     const replyDrawingFullscreenButton = event.target.closest('[data-reply-drawing-fullscreen]');
     if (replyDrawingFullscreenButton) {
       event.preventDefault();
-      const form = getReplyForm(replyDrawingFullscreenButton.dataset.replyDrawingFullscreen);
-      const panel = form?.querySelector('[data-reply-drawing-panel]');
-      setReplyDrawingFullscreen(replyDrawingFullscreenButton.dataset.replyDrawingFullscreen, !panel?.classList.contains('is-fullscreen'));
+      const currentPanel = replyDrawingFullscreenButton.closest('[data-reply-drawing-panel]');
+      const postId = replyDrawingFullscreenButton.dataset.replyDrawingFullscreen || currentPanel?.dataset.fullscreenPostId;
+      const form = getReplyForm(postId);
+      const panel = form?.querySelector('[data-reply-drawing-panel]') || currentPanel;
+      setReplyDrawingFullscreen(postId, !panel?.classList.contains('is-fullscreen'));
       return;
     }
     const replyDrawingClear = event.target.closest('[data-reply-drawing-clear]');
     if (replyDrawingClear) {
       event.preventDefault();
-      clearReplyDrawing(replyDrawingClear.dataset.replyDrawingClear);
+      const currentPanel = replyDrawingClear.closest('[data-reply-drawing-panel]');
+      clearReplyDrawing(replyDrawingClear.dataset.replyDrawingClear || currentPanel?.dataset.fullscreenPostId);
       return;
     }
     const replyDeleteButton = event.target.closest('[data-delete-reply-id]');
@@ -2615,8 +2709,8 @@ function attachEvents() {
   document.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
     const openPanel = document.querySelector('.reply-drawing-panel.is-fullscreen');
-    const form = openPanel?.closest('[data-reply-form]');
-    if (form?.dataset?.replyForm) setReplyDrawingFullscreen(form.dataset.replyForm, false);
+    const postId = openPanel?.dataset.fullscreenPostId || openPanel?.closest('[data-reply-form]')?.dataset?.replyForm;
+    if (postId) setReplyDrawingFullscreen(postId, false);
   });
   document.addEventListener('submit', event => {
     const replyForm = event.target.closest('[data-reply-form]');

@@ -201,3 +201,16 @@ Version 52 updates the public GitHub Pages URL references to https://taylorlayor
 - Centered the reply drawing full-screen panel on iPhone/Home Screen mode and strengthened button tap targets.
 - Stopped picture/drawing post reactions from refreshing the whole Poster Board card; only the reaction row updates.
 - Added stronger CSS overrides so the CALL EACH OTHER... NOWWW alert calms after the short flash.
+
+
+## v61 clean from v56
+- Reply full-screen drawing now moves to a true fixed body overlay using the visible iPhone viewport, so it opens centered instead of above the current scroll position.
+- Nav stays fully visible while the bottom bar is being touched/dragged, preventing flicker between Home and full nav.
+- The collapsed Potential best trip slab now shows a clearer + View affordance below the title.
+- Cache bumped to v61-clean.
+
+
+## v62 clean from v56
+- Calendar holiday day details now appear beside the tapped date as a small speech-bubble tooltip instead of down below the calendar.
+- Tooltip automatically flips above the date when there is not enough room below.
+- Cache updated to v62-clean.
