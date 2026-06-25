@@ -701,7 +701,7 @@ function renderHolidayCalendar(selection, filter, rows, todayIso) {
   const monthKeys = Array.from({ length: 12 }, (_, index) => `${year}-${String(index + 1).padStart(2, '0')}`);
   const legend = `<div class="holiday-legend"><span class="legend-dot us-dot"></span> Ingleside/USA <span class="legend-dot au-dot"></span> Sydney/Australia-NSW <span class="legend-dot both-dot"></span> Both same date</div>`;
   const months = monthKeys.map(monthKey => buildHolidayMonth(monthKey, byDate, filter)).join('');
-  target.innerHTML = `${legend}<div class="holiday-calendar-grid">${months}</div>`;
+  target.innerHTML = `${legend}<div class="holiday-calendar-grid">${months}</div><div id="holidayTouchDetail" class="holiday-touch-detail" hidden></div>`;
 }
 function buildHolidayMonth(monthKey, byDate, filter) {
   const [year, month] = monthKey.split('-').map(Number);
@@ -718,8 +718,9 @@ function buildHolidayMonth(monthKey, byDate, filter) {
     const hasAu = rows.some(h => h.placeId === 'au');
     const cls = hasUs && hasAu ? 'has-both' : hasUs ? 'has-us' : hasAu ? 'has-au' : '';
     const title = rows.map(h => `${CONFIG.places[h.placeId].shortLabel}: ${h.name}`).join(' | ');
+    const details = rows.map(h => `${CONFIG.places[h.placeId].shortLabel}: ${h.name}`).join(';;');
     const markers = rows.length ? `<span class="holiday-markers">${hasUs ? '<i class="marker us-dot"></i>' : ''}${hasAu ? '<i class="marker au-dot"></i>' : ''}</span>` : '';
-    return `<div class="calendar-cell ${cls}" title="${escapeHtml(title)}"><span class="day-number">${day}</span>${markers}</div>`;
+    return `<button class="calendar-cell ${cls}" type="button" title="${escapeHtml(title)}" data-holiday-date="${iso}" data-holiday-detail="${escapeHtml(details)}"><span class="day-number">${day}</span>${markers}</button>`;
   }).join('');
   const labels = ['S','M','T','W','T','F','S'].map(d => `<span>${d}</span>`).join('');
   return `<article class="holiday-month"><h3>${monthName}</h3><div class="weekday-row">${labels}</div><div class="month-grid">${blanks}${dayCells}</div></article>`;
@@ -727,6 +728,23 @@ function buildHolidayMonth(monthKey, byDate, filter) {
 
 
 function eachDate(startIso, endIso){ const out=[]; let d=new Date(`${startIso}T12:00:00Z`); const end=new Date(`${endIso}T12:00:00Z`); while(d<=end){ out.push(d.toISOString().slice(0,10)); d=new Date(d.getTime()+86400000); } return out; }
+function showHolidayTouchDetail(cell) {
+  const box = $('#holidayTouchDetail');
+  if (!box || !cell) return;
+  const detail = cell.dataset.holidayDetail || '';
+  const date = cell.dataset.holidayDate || '';
+  document.querySelectorAll('.calendar-cell.is-selected').forEach(el => el.classList.remove('is-selected'));
+  cell.classList.add('is-selected');
+  if (!detail) {
+    box.hidden = false;
+    box.innerHTML = `<strong>${displayIsoDate(date)}</strong><span>No loaded holiday for this date.</span>`;
+    return;
+  }
+  const rows = detail.split(';;').filter(Boolean).map(item => `<span>${escapeHtml(item)}</span>`).join('');
+  box.hidden = false;
+  box.innerHTML = `<strong>${displayIsoDate(date)}</strong>${rows}`;
+}
+
 function holidayMapByDate() {
   const holidayMap = new Map();
   for (const h of state.holidays) {
@@ -1270,13 +1288,17 @@ function initStandaloneNavAutoHide(tabbar) {
   const homeButton = $('#navHomeButton');
   if (!tabbar || tabbar.dataset.autoHideReady) return;
   tabbar.dataset.autoHideReady = '1';
+  let navHoldUntil = 0;
+  const showFullNav = (holdMs = 1600) => {
+    navHoldUntil = Math.max(navHoldUntil, Date.now() + holdMs);
+    document.body.classList.remove('nav-compact-on-scroll', 'nav-hidden-on-scroll');
+    document.body.classList.add('nav-visible-on-scroll', 'nav-open-from-home');
+    window.setTimeout(() => document.body.classList.remove('nav-open-from-home'), Math.max(holdMs, 650));
+  };
+  window.acrossShowFullNav = showFullNav;
   if (homeButton) {
     homeButton.hidden = false;
-    homeButton.addEventListener('click', () => {
-      document.body.classList.remove('nav-compact-on-scroll', 'nav-hidden-on-scroll');
-      document.body.classList.add('nav-open-from-home', 'nav-visible-on-scroll');
-      window.setTimeout(() => document.body.classList.remove('nav-open-from-home'), 4200);
-    });
+    homeButton.addEventListener('click', () => showFullNav(4200));
   }
   let lastY = window.scrollY || 0;
   let ticking = false;
@@ -1286,6 +1308,13 @@ function initStandaloneNavAutoHide(tabbar) {
     requestAnimationFrame(() => {
       const y = window.scrollY || 0;
       const diff = y - lastY;
+      if (Date.now() < navHoldUntil) {
+        document.body.classList.remove('nav-compact-on-scroll', 'nav-hidden-on-scroll');
+        document.body.classList.add('nav-visible-on-scroll');
+        lastY = y;
+        ticking = false;
+        return;
+      }
       if (Math.abs(diff) > 7) {
         const compact = diff > 0 && y > 80;
         document.body.classList.toggle('nav-compact-on-scroll', compact);
@@ -1310,7 +1339,9 @@ function initBottomTabs() {
   const activateButton = (button, options = {}) => {
     if (!button) return;
     const targetTab = button.dataset.appTab;
+    if (!options.dragging && typeof window.acrossShowFullNav === 'function') window.acrossShowFullNav(1800);
     setActiveAppTab(targetTab, { scroll: options.scroll !== false, instant: Boolean(options.instant) });
+    if (!options.dragging && typeof window.acrossShowFullNav === 'function') window.setTimeout(() => window.acrossShowFullNav(1500), 60);
     updateTabIndicator(tabbar, button, { dragging: Boolean(options.dragging) });
     if (targetTab === 'poster' && !options.dragging) {
       loadPosterPosts({ silent: true, preserveScroll: false }).catch(err => console.warn('Poster Board refresh failed:', err));
@@ -2067,18 +2098,29 @@ async function togglePosterReaction(postId, emoji) {
   const author = posterAuthor();
   const post = posterPosts.find(item => item.id === postId);
   const existing = (post?.poster_reactions || []).find(reaction => reaction.emoji === emoji && reaction.author === author);
+  const updateReactionUiOnly = () => {
+    if (!post) return;
+    const wrap = document.querySelector(`[data-poster-post-id="${safeCss(postId)}"] .poster-reactions`);
+    if (wrap) wrap.outerHTML = reactionControlsHtml(post);
+  };
   try {
     if (existing) {
       setPosterStatus('Removing reaction…');
       const { error } = await client.from('poster_reactions').delete().eq('id', existing.id);
       if (error) throw error;
+      if (post) post.poster_reactions = (post.poster_reactions || []).filter(reaction => reaction.id !== existing.id);
     } else {
       setPosterStatus('Adding reaction…');
-      const { error } = await client.from('poster_reactions').insert({ post_id: postId, author, emoji });
+      const { data, error } = await client.from('poster_reactions').insert({ post_id: postId, author, emoji }).select('*').single();
       if (error) throw error;
+      if (post) {
+        if (!Array.isArray(post.poster_reactions)) post.poster_reactions = [];
+        post.poster_reactions.push(data || { post_id: postId, author, emoji, created_at: new Date().toISOString(), id: String(Date.now()) });
+      }
     }
-    await refreshPosterInPlace({ markSeen: true, preserveScroll: true });
+    updateReactionUiOnly();
     setPosterStatus('');
+    refreshPosterBadgeOnly();
   } catch (error) {
     setPosterStatus(error.message || 'Reaction failed. Run the updated supabase-setup.sql and try again.', true);
   }
@@ -2231,8 +2273,9 @@ function setReplyDrawingFullscreen(postId, open) {
   }
   const resize = () => replyCanvasState.get(canvas)?.resize?.({ preserve: true });
   requestAnimationFrame(resize);
-  window.setTimeout(resize, 80);
-  window.setTimeout(resize, 220);
+  window.setTimeout(resize, 60);
+  window.setTimeout(resize, 160);
+  window.setTimeout(resize, 360);
   if (!wantsOpen && Number.isFinite(replyDrawingScrollY)) window.setTimeout(() => window.scrollTo(0, replyDrawingScrollY), 0);
 }
 function clearReplyDrawing(postId) {
@@ -2544,6 +2587,12 @@ function attachEvents() {
         savePosterLastSeenMs(Math.max(loadPosterLastSeenMs(), postActivityMs(post)));
         renderPosterFeed(posterPosts, { keepSeenState: true, preserveScroll: true });
       }
+      return;
+    }
+    const holidayCell = event.target.closest('[data-holiday-date]');
+    if (holidayCell) {
+      event.preventDefault();
+      showHolidayTouchDetail(holidayCell);
       return;
     }
     const tempButton = event.target.closest('[data-temp-toggle]');

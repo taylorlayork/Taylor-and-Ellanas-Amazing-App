@@ -187,3 +187,17 @@ Version 52 updates the public GitHub Pages URL references to https://taylorlayor
 - Fixes call alert flashing so it calms after ~2 seconds.
 - Nav now morphs into a bottom-left home button while scrolling down, then expands on tap/scroll-up.
 - Reply drawing fullscreen sizing and Done button behavior improved.
+
+
+## v59 clean from v56
+- Moved the scroll-collapse Home button to the center bottom.
+- Minimized the Potential best 1–2 week trips slab behind a tap-to-open summary.
+- Added touch/click holiday details on calendar dates so tapping a day shows a subtle inline holiday card.
+- Updated service worker cache to v59-clean.
+
+## v60 clean-from-v56
+- Made the bottom navigation/Home button morph much smoother.
+- Kept the full bottom navigation visible briefly after tapping a nav button so it does not immediately collapse during page changes.
+- Centered the reply drawing full-screen panel on iPhone/Home Screen mode and strengthened button tap targets.
+- Stopped picture/drawing post reactions from refreshing the whole Poster Board card; only the reaction row updates.
+- Added stronger CSS overrides so the CALL EACH OTHER... NOWWW alert calms after the short flash.
