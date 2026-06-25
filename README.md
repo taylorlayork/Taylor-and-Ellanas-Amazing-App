@@ -124,3 +124,17 @@ Version 42 update: Poster Board composer is collapsed by default behind a + Post
 - Rebuilt from the last known-good automated build so weather, holidays/trip ideas, and USD/AUD loading are isolated from Poster Board errors.
 - Full-screen drawing now uses a stronger fixed overlay style and click/touch fallback for iPhone Home Screen mode.
 - Daily connection cue remains removed.
+
+
+v46: Replaced the iPhone full-screen drawing behavior with an in-app fixed drawing modal to avoid Safari/Home Screen page jumps or freezes.
+
+
+Version 47 adds optional notes for photo and drawing posts. Use + Add a note under the photo/drawing tools, including the phone drawing view. Notes are stored in the existing poster_posts.body column, so no new Supabase table change is required beyond the existing Poster Board setup.
+
+
+## v48 Poster Board activity update
+Run the updated `supabase-setup.sql` again. It adds replies, reactions, latest-activity sorting, and realtime tables for replies/reactions.
+
+
+## v49
+- Poster Board author picker is now a Change user button with a Taylor/Ellana popup. Ellana remains the default, and the selected user is saved per device.

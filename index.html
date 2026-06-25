@@ -71,7 +71,10 @@
         <article id="posterComposer" class="card poster-composer poster-composer-collapsed" hidden>
           <div id="posterSetupNotice" class="poster-setup-notice" hidden></div>
           <div class="poster-form-grid">
-            <label>Who is posting?<select id="posterAuthor"><option value="Ellana" selected>Ellana</option><option value="Taylor">Taylor</option></select></label>
+            <div class="poster-user-row full">
+              <div><span class="muted">Posting as</span><strong id="posterCurrentAuthor">Ellana</strong></div>
+              <button id="changePosterAuthor" class="secondary" type="button">Change user</button>
+            </div>
             <label class="full">Message<textarea id="posterMessage" rows="3" placeholder="Write something sweet, funny, random, or dramatic…"></textarea></label>
             <div class="actions compact-actions full"><button id="postMessageBtn" type="button">Post message</button></div>
           </div>
@@ -80,12 +83,16 @@
               <h3>Post a photo</h3>
               <p class="muted">Choose a picture from your phone, then post it to the board.</p>
               <input id="posterPhotoInput" type="file" accept="image/*" />
+              <button id="togglePhotoNote" class="add-note-toggle" type="button" data-note-target="photoNoteWrap" aria-expanded="false">+ Add a note</button>
+              <label id="photoNoteWrap" class="poster-note-wrap" hidden>Note for this photo<textarea id="posterPhotoNote" rows="2" placeholder="Optional caption or context…"></textarea></label>
               <button id="postPhotoBtn" type="button">Post photo</button>
             </section>
             <section class="poster-tool-card drawing-tool">
               <h3>Draw with your finger</h3>
               <p class="muted">Use your finger on iPhone or your mouse on computer.</p>
               <canvas id="drawingCanvas" aria-label="Finger drawing canvas"></canvas>
+              <button id="toggleDrawingNote" class="add-note-toggle" type="button" data-note-target="drawingNoteWrap" aria-expanded="false">+ Add a note</button>
+              <label id="drawingNoteWrap" class="poster-note-wrap" hidden>Note for this drawing<textarea id="posterDrawingNote" rows="2" placeholder="Optional note about your drawing…"></textarea></label>
               <div class="actions compact-actions drawing-actions"><button id="expandDrawingBtn" type="button" class="secondary" aria-pressed="false">Full-screen draw</button><button id="clearDrawingBtn" type="button" class="secondary">Clear</button><button id="postDrawingBtn" type="button">Post drawing</button></div>
             </section>
           </div>
@@ -153,6 +160,18 @@
     </form>
   </dialog>
 
+  <dialog id="posterUserDialog" class="poster-user-dialog">
+    <div class="poster-user-picker">
+      <h2>Change Poster Board user</h2>
+      <p class="muted">Reactions, replies, and new posts will use this name on this device.</p>
+      <div class="poster-user-choice-grid">
+        <button type="button" data-poster-author-choice="Ellana">Ellana</button>
+        <button type="button" data-poster-author-choice="Taylor">Taylor</button>
+      </div>
+      <button id="closePosterUserDialog" type="button" class="secondary">Cancel</button>
+    </div>
+  </dialog>
+
   <dialog id="chartDialog" class="chart-dialog">
     <button class="icon modal-close-floating" id="closeChartDialog" aria-label="Close">×</button>
     <div id="chartDialogContent" class="chart-dialog-content"></div>
@@ -167,6 +186,23 @@
       <div id="holidayList" class="list holiday-list"></div>
     </div>
   </dialog>
+
+
+  <div id="drawingFullscreenOverlay" class="drawing-fullscreen-overlay" role="dialog" aria-modal="true" aria-label="Full-screen drawing canvas" hidden>
+    <div class="drawing-fullscreen-header">
+      <div><strong>Draw full screen</strong><span>Use your finger or mouse</span></div>
+      <button id="exitDrawingFullscreen" type="button" class="secondary">Done</button>
+    </div>
+    <div id="drawingFullscreenStage" class="drawing-fullscreen-stage"></div>
+    <div class="drawing-fullscreen-note">
+      <button id="toggleFullscreenDrawingNote" class="add-note-toggle" type="button" data-note-target="fullscreenDrawingNoteWrap" aria-expanded="false">+ Add a note</button>
+      <label id="fullscreenDrawingNoteWrap" class="poster-note-wrap" hidden>Note for this drawing<textarea id="fullscreenDrawingNote" rows="2" placeholder="Optional note about your drawing…"></textarea></label>
+    </div>
+    <div class="drawing-fullscreen-actions">
+      <button id="fullscreenClearDrawing" type="button" class="secondary">Clear</button>
+      <button id="fullscreenPostDrawing" type="button">Post drawing</button>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>

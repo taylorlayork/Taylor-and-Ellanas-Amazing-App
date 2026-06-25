@@ -1183,6 +1183,7 @@ function setActiveAppTab(tab, options = {}) {
   });
   document.body.dataset.activeTab = nextTab;
   try { localStorage.setItem('across.activeTab', nextTab); } catch (_) {}
+  try { handlePosterTabVisibility(nextTab); } catch (_) {}
   if (options.scroll) {
     const firstPanel = panels.find(panel => panel.dataset.tabPanel === nextTab);
     const target = firstPanel || document.querySelector('.hero');
@@ -1414,13 +1415,19 @@ function initBottomTabs() {
 
 const POSTER_BUCKET = 'poster-media';
 const POSTER_AUTHOR_KEY = 'across.posterAuthor';
+const POSTER_LAST_SEEN_KEY = 'across.posterLastSeenActivity';
 let posterClient = null;
 let posterChannel = null;
 let posterSeenIds = new Set();
+let posterPosts = [];
+let posterUnreadClearTimer = null;
 let drawingContext = null;
 let drawingHasInk = false;
 let drawingPointerId = null;
 let drawingResizeCanvas = null;
+let drawingOriginalParent = null;
+let drawingOriginalNextSibling = null;
+let drawingScrollY = 0;
 
 function posterConfig() {
   return window.ACROSS_SUPABASE_CONFIG || {};
@@ -1462,26 +1469,116 @@ function posterImageUrl(path) {
   const { data } = client.storage.from(POSTER_BUCKET).getPublicUrl(path);
   return data?.publicUrl || '';
 }
+
+function postActivityMs(post) {
+  const raw = post?.last_activity_at || post?.created_at;
+  const ms = raw ? new Date(raw).getTime() : 0;
+  return Number.isFinite(ms) ? ms : 0;
+}
+function loadPosterLastSeenMs() {
+  const saved = Number(localStorage.getItem(POSTER_LAST_SEEN_KEY) || 0);
+  return Number.isFinite(saved) ? saved : 0;
+}
+function savePosterLastSeenMs(ms) {
+  if (Number.isFinite(ms) && ms > 0) localStorage.setItem(POSTER_LAST_SEEN_KEY, String(ms));
+}
+function newestPosterActivityMs() {
+  return Math.max(0, ...posterPosts.map(postActivityMs));
+}
+function posterUnreadCount() {
+  const lastSeen = loadPosterLastSeenMs();
+  return posterPosts.filter(post => postActivityMs(post) > lastSeen).length;
+}
+function updatePosterUnreadUi() {
+  const button = document.querySelector('[data-app-tab="poster"]');
+  if (!button) return;
+  const count = posterUnreadCount();
+  button.classList.toggle('has-unread', count > 0);
+  if (count > 0) button.setAttribute('data-unread-count', String(Math.min(count, 9)));
+  else button.removeAttribute('data-unread-count');
+}
+function markPosterSeenSoon() {
+  if (document.body.dataset.activeTab !== 'poster') return;
+  const newest = newestPosterActivityMs();
+  if (!newest || newest <= loadPosterLastSeenMs()) return;
+  clearTimeout(posterUnreadClearTimer);
+  posterUnreadClearTimer = window.setTimeout(() => {
+    savePosterLastSeenMs(newest);
+    updatePosterUnreadUi();
+    renderPosterFeed(posterPosts, { keepSeenState: true });
+  }, 2800);
+}
+function handlePosterTabVisibility(tab) {
+  if (tab === 'poster') markPosterSeenSoon();
+  else clearTimeout(posterUnreadClearTimer);
+}
+function normalizePosterRows(rows = []) {
+  return rows.map(post => ({
+    ...post,
+    poster_replies: Array.isArray(post.poster_replies) ? post.poster_replies.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) : [],
+    poster_reactions: Array.isArray(post.poster_reactions) ? post.poster_reactions.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) : []
+  })).sort((a, b) => postActivityMs(b) - postActivityMs(a));
+}
+function groupedReactions(post) {
+  return (post.poster_reactions || []).reduce((groups, reaction) => {
+    if (!reaction?.emoji) return groups;
+    if (!groups[reaction.emoji]) groups[reaction.emoji] = [];
+    if (reaction.author && !groups[reaction.emoji].includes(reaction.author)) groups[reaction.emoji].push(reaction.author);
+    return groups;
+  }, {});
+}
+function hasReaction(post, emoji, author = posterAuthor()) {
+  return (post.poster_reactions || []).some(reaction => reaction.emoji === emoji && reaction.author === author);
+}
+function reactionControlsHtml(post) {
+  const emojis = ['❤️', '😂', '🥺', '🔥', '👍'];
+  const groups = groupedReactions(post);
+  const buttons = emojis.map(emoji => {
+    const authors = groups[emoji] || [];
+    const active = hasReaction(post, emoji);
+    const title = authors.length ? `${emoji} ${authors.join(', ')}` : `${emoji} react`;
+    return `<button type="button" class="poster-react-button ${active ? 'active' : ''}" data-react-poster-id="${escapeHtml(post.id)}" data-react-emoji="${escapeHtml(emoji)}" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}"><span>${emoji}</span>${authors.length ? `<em>${authors.length}</em>` : ''}</button>`;
+  }).join('');
+  const summaries = Object.entries(groups).filter(([, authors]) => authors.length).map(([emoji, authors]) => `<span class="poster-reaction-summary"><strong>${escapeHtml(emoji)}</strong> ${escapeHtml(authors.join(', '))}</span>`).join('');
+  return `<div class="poster-reactions"><div class="poster-reaction-buttons">${buttons}</div>${summaries ? `<div class="poster-reaction-summary-row">${summaries}</div>` : ''}</div>`;
+}
+function repliesHtml(post) {
+  const replies = post.poster_replies || [];
+  const list = replies.length
+    ? `<div class="poster-replies-list">${replies.map(reply => `<div class="poster-reply"><div><strong>${escapeHtml(reply.author || 'Someone')}</strong><span>${escapeHtml(reply.created_at ? new Date(reply.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '')}</span></div><p>${escapeHtml(reply.body || '')}</p></div>`).join('')}</div>`
+    : '';
+  return `<div class="poster-replies">${list}<button type="button" class="poster-reply-toggle" data-reply-toggle="${escapeHtml(post.id)}">Reply</button><form class="poster-reply-form" data-reply-form="${escapeHtml(post.id)}" hidden><textarea rows="2" placeholder="Write a reply…"></textarea><div><button type="button" class="secondary" data-reply-cancel="${escapeHtml(post.id)}">Cancel</button><button type="submit">Post reply</button></div></form></div>`;
+}
 function posterPostHtml(post, options = {}) {
   const safeAuthor = escapeHtml(post.author || 'Someone');
   const date = post.created_at ? new Date(post.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
   const imagePath = post.image_path || '';
   const deleteButton = post.id ? `<button type="button" class="poster-delete-button" data-delete-poster-id="${escapeHtml(post.id)}" data-delete-image-path="${escapeHtml(imagePath)}" aria-label="Delete this post">Delete</button>` : '';
-  const meta = `<div class="poster-post-meta"><div><strong>${safeAuthor}</strong><span>${escapeHtml(date)}</span></div>${deleteButton}</div>`;
+  const lastActivity = post.last_activity_at && post.last_activity_at !== post.created_at
+    ? `<span class="poster-activity-note">Last activity ${escapeHtml(new Date(post.last_activity_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }))}</span>`
+    : '';
+  const newMarker = options.unread ? '<span class="poster-new-pill">New</span>' : '';
+  const meta = `<div class="poster-post-meta"><div><strong>${safeAuthor}</strong><span>${escapeHtml(date)}</span>${lastActivity}</div><div class="poster-post-actions">${newMarker}${deleteButton}</div></div>`;
   const latestClass = options.latest ? ' latest-post' : '';
+  const unreadClass = options.unread ? ' poster-unread' : '';
+  const note = post.body ? `<p class="poster-media-note">${escapeHtml(post.body)}</p>` : '';
+  const social = `${reactionControlsHtml(post)}${repliesHtml(post)}`;
   if (post.kind === 'message') {
-    return `<article class="poster-post card message-post${latestClass}">${meta}<p>${escapeHtml(post.body || '')}</p></article>`;
+    return `<article class="poster-post card message-post${latestClass}${unreadClass}" data-poster-post-id="${escapeHtml(post.id)}">${meta}<p>${escapeHtml(post.body || '')}</p>${social}</article>`;
   }
   const url = posterImageUrl(post.image_path);
-  return `<article class="poster-post card media-post${latestClass}">${meta}<img src="${escapeHtml(url)}" alt="${escapeHtml(post.kind)} from ${safeAuthor}" loading="lazy" /></article>`;
+  return `<article class="poster-post card media-post${latestClass}${unreadClass}" data-poster-post-id="${escapeHtml(post.id)}">${meta}<img src="${escapeHtml(url)}" alt="${escapeHtml(post.kind)} from ${safeAuthor}" loading="lazy" />${note}${social}</article>`;
 }
-function renderPosterFeed(posts = []) {
+function renderPosterFeed(posts = posterPosts, options = {}) {
   const feed = $('#posterFeed');
   if (!feed) return;
+  const lastSeen = loadPosterLastSeenMs();
   posterSeenIds = new Set(posts.map(post => post.id).filter(Boolean));
   feed.innerHTML = posts.length
-    ? posts.map((post, index) => posterPostHtml(post, { latest: index === 0 })).join('')
+    ? posts.map((post, index) => posterPostHtml(post, { latest: index === 0, unread: postActivityMs(post) > lastSeen })).join('')
     : '<article class="poster-empty card"><strong>No posts yet.</strong><p>Tap + Post to add the first message, photo, or drawing.</p></article>';
+  updatePosterUnreadUi();
+  if (!options.keepSeenState) markPosterSeenSoon();
 }
 function addPosterPostToTop(post) {
   if (!post?.id || posterSeenIds.has(post.id)) return;
@@ -1494,14 +1591,15 @@ async function loadPosterPosts() {
   setPosterStatus('Loading poster board…');
   const { data, error } = await client
     .from('poster_posts')
-    .select('*')
-    .order('created_at', { ascending: false })
+    .select('*, poster_replies(*), poster_reactions(*)')
+    .order('last_activity_at', { ascending: false, nullsFirst: false })
     .limit(60);
   if (error) {
-    setPosterStatus(`Poster Board error: ${error.message}`, true);
+    setPosterStatus(`Poster Board error: ${error.message}. Run the updated supabase-setup.sql from this ZIP so replies/reactions can load.`, true);
     return;
   }
-  renderPosterFeed(data || []);
+  posterPosts = normalizePosterRows(data || []);
+  renderPosterFeed(posterPosts);
   setPosterStatus('');
 }
 function subscribePosterRealtime() {
@@ -1509,8 +1607,9 @@ function subscribePosterRealtime() {
   if (!client || posterChannel) return;
   posterChannel = client
     .channel('poster-board')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'poster_posts' }, payload => addPosterPostToTop(payload.new))
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'poster_posts' }, () => loadPosterPosts())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'poster_posts' }, () => loadPosterPosts())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'poster_replies' }, () => loadPosterPosts())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'poster_reactions' }, () => loadPosterPosts())
     .subscribe();
 }
 function loadPosterAuthor() {
@@ -1520,16 +1619,50 @@ function loadPosterAuthor() {
 function savePosterAuthor(value) {
   if (value === 'Taylor' || value === 'Ellana') localStorage.setItem(POSTER_AUTHOR_KEY, value);
 }
+function setPosterAuthorUi(value = loadPosterAuthor()) {
+  const author = value === 'Taylor' ? 'Taylor' : 'Ellana';
+  savePosterAuthor(author);
+  const label = $('#posterCurrentAuthor');
+  if (label) label.textContent = author;
+  document.querySelectorAll('[data-poster-author-choice]').forEach(button => {
+    button.classList.toggle('active', button.dataset.posterAuthorChoice === author);
+    button.setAttribute('aria-pressed', String(button.dataset.posterAuthorChoice === author));
+  });
+}
 function initPosterAuthorPicker() {
-  const select = $('#posterAuthor');
-  if (!select) return;
-  select.value = loadPosterAuthor();
-  select.addEventListener('change', () => savePosterAuthor(select.value));
+  setPosterAuthorUi(loadPosterAuthor());
 }
 function posterAuthor() {
-  const value = $('#posterAuthor')?.value || loadPosterAuthor();
-  savePosterAuthor(value);
+  const value = loadPosterAuthor();
+  setPosterAuthorUi(value);
   return value || 'Ellana';
+}
+function noteValue(selector) {
+  return ($(selector)?.value || '').trim();
+}
+function photoNote() {
+  return noteValue('#posterPhotoNote');
+}
+function drawingNote() {
+  return noteValue('#fullscreenDrawingNote') || noteValue('#posterDrawingNote');
+}
+function clearMediaNotes() {
+  ['#posterPhotoNote', '#posterDrawingNote', '#fullscreenDrawingNote'].forEach(selector => {
+    const el = $(selector);
+    if (el) el.value = '';
+  });
+}
+function togglePosterNote(targetId, button = null, forceOpen = null) {
+  const wrap = document.getElementById(targetId);
+  if (!wrap) return;
+  const open = forceOpen === null ? wrap.hidden : Boolean(forceOpen);
+  wrap.hidden = !open;
+  const toggle = button || document.querySelector(`[data-note-target="${targetId}"]`);
+  if (toggle) {
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.textContent = open ? '− Hide note' : '+ Add a note';
+  }
+  if (open) wrap.querySelector('textarea')?.focus();
 }
 function cleanFileName(name = 'upload') {
   return String(name).replace(/[^a-z0-9._-]+/gi, '-').slice(-90);
@@ -1607,8 +1740,11 @@ async function postPosterPhoto() {
     setPosterStatus('Uploading photo…');
     const blob = await resizeImageFile(file);
     const image_path = await uploadPosterBlob(blob, 'photo', file.name);
-    await createPosterPost({ author: posterAuthor(), kind: 'photo', image_path });
+    const body = photoNote();
+    await createPosterPost({ author: posterAuthor(), kind: 'photo', image_path, body: body || null });
     input.value = '';
+    $('#posterPhotoNote') && ($('#posterPhotoNote').value = '');
+    togglePosterNote('photoNoteWrap', null, false);
     setPosterStatus('Photo posted!');
     await loadPosterPosts();
     setPosterComposerOpen(false);
@@ -1619,6 +1755,8 @@ async function postPosterPhoto() {
 function setupDrawingCanvas() {
   const canvas = $('#drawingCanvas');
   if (!canvas) return;
+  drawingOriginalParent = canvas.parentNode;
+  drawingOriginalNextSibling = canvas.nextSibling;
   const resize = (options = {}) => {
     const preserve = options.preserve !== false && drawingHasInk && canvas.width && canvas.height;
     const oldCanvas = preserve ? document.createElement('canvas') : null;
@@ -1689,17 +1827,39 @@ function setupDrawingCanvas() {
 }
 function setDrawingFullscreen(open) {
   const wantsOpen = Boolean(open);
+  const canvas = $('#drawingCanvas');
+  const overlay = $('#drawingFullscreenOverlay');
+  const stage = $('#drawingFullscreenStage');
+  if (!canvas || !overlay || !stage) return;
   if (wantsOpen && $('#posterComposer')?.hidden) setPosterComposerOpen(true);
-  document.documentElement.classList.toggle('drawing-fullscreen', wantsOpen);
-  document.body.classList.toggle('drawing-fullscreen', wantsOpen);
+
+  if (wantsOpen) {
+    drawingScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+    if (!drawingOriginalParent) {
+      drawingOriginalParent = canvas.parentNode;
+      drawingOriginalNextSibling = canvas.nextSibling;
+    }
+    overlay.hidden = false;
+    stage.appendChild(canvas);
+    document.documentElement.classList.add('drawing-fullscreen');
+    document.body.classList.add('drawing-fullscreen');
+  } else {
+    if (drawingOriginalParent && canvas.parentNode === stage) {
+      drawingOriginalParent.insertBefore(canvas, drawingOriginalNextSibling);
+    }
+    overlay.hidden = true;
+    document.documentElement.classList.remove('drawing-fullscreen');
+    document.body.classList.remove('drawing-fullscreen');
+    if (Number.isFinite(drawingScrollY)) window.setTimeout(() => window.scrollTo(0, drawingScrollY), 0);
+  }
+
   const button = $('#expandDrawingBtn');
   if (button) {
-    button.textContent = wantsOpen ? 'Exit full-screen' : 'Full-screen draw';
+    button.textContent = wantsOpen ? 'Full-screen is open' : 'Full-screen draw';
     button.setAttribute('aria-pressed', String(wantsOpen));
   }
-  if (wantsOpen) window.scrollTo({ top: 0, behavior: 'instant' });
-  window.setTimeout(() => drawingResizeCanvas?.({ preserve: true }), 80);
-  window.setTimeout(() => drawingResizeCanvas?.({ preserve: true }), 320);
+  window.setTimeout(() => drawingResizeCanvas?.({ preserve: true }), 50);
+  window.setTimeout(() => drawingResizeCanvas?.({ preserve: true }), 250);
 }
 function toggleDrawingFullscreen() {
   setDrawingFullscreen(!document.body.classList.contains('drawing-fullscreen'));
@@ -1714,8 +1874,12 @@ async function postPosterDrawing() {
     setPosterStatus('Uploading drawing…');
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     const image_path = await uploadPosterBlob(blob, 'drawing', 'drawing.png');
-    await createPosterPost({ author: posterAuthor(), kind: 'drawing', image_path });
+    const body = drawingNote();
+    await createPosterPost({ author: posterAuthor(), kind: 'drawing', image_path, body: body || null });
     $('#clearDrawingBtn')?.click();
+    clearMediaNotes();
+    togglePosterNote('drawingNoteWrap', null, false);
+    togglePosterNote('fullscreenDrawingNoteWrap', null, false);
     setDrawingFullscreen(false);
     setPosterStatus('Drawing posted!');
     await loadPosterPosts();
@@ -1725,6 +1889,58 @@ async function postPosterDrawing() {
   }
 }
 
+async function togglePosterReaction(postId, emoji) {
+  const client = getPosterClient();
+  if (!client || !postId || !emoji) return;
+  const author = posterAuthor();
+  const post = posterPosts.find(item => item.id === postId);
+  const existing = (post?.poster_reactions || []).find(reaction => reaction.emoji === emoji && reaction.author === author);
+  try {
+    if (existing) {
+      setPosterStatus('Removing reaction…');
+      const { error } = await client.from('poster_reactions').delete().eq('id', existing.id);
+      if (error) throw error;
+    } else {
+      setPosterStatus('Adding reaction…');
+      const { error } = await client.from('poster_reactions').insert({ post_id: postId, author, emoji });
+      if (error) throw error;
+    }
+    await loadPosterPosts();
+    setPosterStatus('');
+  } catch (error) {
+    setPosterStatus(error.message || 'Reaction failed. Run the updated supabase-setup.sql and try again.', true);
+  }
+}
+function setReplyFormOpen(postId, open) {
+  const form = document.querySelector(`[data-reply-form="${CSS.escape(postId)}"]`);
+  const button = document.querySelector(`[data-reply-toggle="${CSS.escape(postId)}"]`);
+  if (!form) return;
+  form.hidden = !open;
+  if (button) button.textContent = open ? 'Replying…' : 'Reply';
+  if (open) form.querySelector('textarea')?.focus();
+}
+async function submitPosterReply(form) {
+  const client = getPosterClient();
+  if (!client || !form) return;
+  const postId = form.dataset.replyForm;
+  const textarea = form.querySelector('textarea');
+  const body = textarea?.value.trim();
+  if (!postId || !body) {
+    setPosterStatus('Write a reply first.', true);
+    return;
+  }
+  try {
+    setPosterStatus('Posting reply…');
+    const { error } = await client.from('poster_replies').insert({ post_id: postId, author: posterAuthor(), body });
+    if (error) throw error;
+    textarea.value = '';
+    setReplyFormOpen(postId, false);
+    await loadPosterPosts();
+    setPosterStatus('Reply posted!');
+  } catch (error) {
+    setPosterStatus(error.message || 'Reply failed. Run the updated supabase-setup.sql and try again.', true);
+  }
+}
 async function deletePosterPost(postId, imagePath = '') {
   const client = getPosterClient();
   if (!client || !postId) {
@@ -1824,9 +2040,17 @@ function attachEvents() {
   onIf('#closeChartDialog', 'click', () => $('#chartDialog').close());
   onIf('#openHolidayList', 'click', () => { renderHolidays(); $('#holidayListDialog').showModal(); });
   onIf('#closeHolidayListDialog', 'click', () => $('#holidayListDialog').close());
+  onIf('#changePosterAuthor', 'click', () => {
+    setPosterAuthorUi(loadPosterAuthor());
+    $('#posterUserDialog')?.showModal();
+  });
+  onIf('#closePosterUserDialog', 'click', () => $('#posterUserDialog')?.close());
   onIf('#postMessageBtn', 'click', postPosterMessage);
   onIf('#postPhotoBtn', 'click', postPosterPhoto);
   onIf('#postDrawingBtn', 'click', postPosterDrawing);
+  onIf('#exitDrawingFullscreen', 'click', () => setDrawingFullscreen(false));
+  onIf('#fullscreenClearDrawing', 'click', () => $('#clearDrawingBtn')?.click());
+  onIf('#fullscreenPostDrawing', 'click', postPosterDrawing);
   let suppressExpandClickUntil = 0;
   document.addEventListener('click', event => {
     const expandButton = event.target.closest('#expandDrawingBtn');
@@ -1834,6 +2058,20 @@ function attachEvents() {
       event.preventDefault();
       if (Date.now() < suppressExpandClickUntil) return;
       toggleDrawingFullscreen();
+      return;
+    }
+    const noteToggle = event.target.closest('[data-note-target]');
+    if (noteToggle) {
+      event.preventDefault();
+      togglePosterNote(noteToggle.dataset.noteTarget, noteToggle);
+      return;
+    }
+    const authorChoice = event.target.closest('[data-poster-author-choice]');
+    if (authorChoice) {
+      event.preventDefault();
+      setPosterAuthorUi(authorChoice.dataset.posterAuthorChoice);
+      $('#posterUserDialog')?.close();
+      renderPosterFeed(posterPosts, { keepSeenState: true });
       return;
     }
     const tempButton = event.target.closest('[data-temp-toggle]');
@@ -1853,13 +2091,6 @@ function attachEvents() {
       deletePosterPost(deleteButton.dataset.deletePosterId, deleteButton.dataset.deleteImagePath || '');
     }
   });
-  document.addEventListener('touchstart', event => {
-    const expandButton = event.target.closest?.('#expandDrawingBtn');
-    if (!expandButton) return;
-    event.preventDefault();
-    suppressExpandClickUntil = Date.now() + 650;
-    toggleDrawingFullscreen();
-  }, { passive: false });
   setInterval(() => { renderTimes(); renderCallWindows(); }, 1000);
 }
 
